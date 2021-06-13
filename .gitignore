@@ -1,0 +1,6 @@
+/.vscode
+/target
+Cargo.lock
+*.jpeg
+*.MOV
+*.MP4
