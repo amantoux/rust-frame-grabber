@@ -11,7 +11,20 @@ extern "C" {
         out_data: *mut *mut u8,
         outsize: *mut size_t,
         rotate: *mut *mut c_char,
-    ) -> c_int;
+    ) -> ResponseStatus;
+    /** Everything went well */
+    static FG_OK: c_int;
+    /** Data is invalid for some reason (no stream found, corrupted file...) */
+    static FG_ERROR_INVALID_INPUT: c_int;
+    /** No frame found */
+    static FG_NOT_FOUND: c_int;
+    /** Internal problem */
+    static FG_ERROR_INTERNAL: c_int;
+}
+#[repr(C)]
+pub struct ResponseStatus {
+    code: c_int,
+    description: *mut c_char,
 }
 
 pub struct FrameResult<'f> {
@@ -19,7 +32,7 @@ pub struct FrameResult<'f> {
     pub rotation: Option<&'f str>,
 }
 
-pub fn get_first_frame(video_src: &[u8]) -> Result<FrameResult, FrameError> {
+pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, FrameError> {
     unsafe {
         let in_len = video_src.len() as size_t;
         let p_in = video_src.as_ptr();
@@ -31,8 +44,17 @@ pub fn get_first_frame(video_src: &[u8]) -> Result<FrameResult, FrameError> {
         let mut rotate: *mut c_char = std::ptr::null_mut();
         let p_rotate = &mut rotate;
         let res = grab_frame(p_in, in_len, p_out, &mut out_len, p_rotate);
-        if res < 0 {
-            return Err(FrameError::Default);
+        if res.code != FG_OK {
+            let desc = CStr::from_ptr(res.description);
+            if res.code == FG_ERROR_INVALID_INPUT {
+                return Err(FrameError::InvalidData(desc.to_str().unwrap().to_string()));
+            } else if res.code == FG_ERROR_INTERNAL {
+                return Err(FrameError::InternalError(
+                    desc.to_str().unwrap().to_string(),
+                ));
+            } else if res.code == FG_NOT_FOUND {
+                return Err(FrameError::NoFrameFound(desc.to_str().unwrap().to_string()));
+            }
         }
 
         if rotate.is_null() {
@@ -52,7 +74,9 @@ pub fn get_first_frame(video_src: &[u8]) -> Result<FrameResult, FrameError> {
 
 #[derive(Debug)]
 pub enum FrameError {
-    Default,
+    InternalError(String),
+    InvalidData(String),
+    NoFrameFound(String),
 }
 
 #[cfg(test)]
