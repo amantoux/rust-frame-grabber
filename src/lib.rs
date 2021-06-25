@@ -24,7 +24,7 @@ extern "C" {
 #[repr(C)]
 pub struct ResponseStatus {
     code: c_int,
-    description: *mut c_char,
+    description: *const c_char,
 }
 
 pub struct FrameResult<'f> {
