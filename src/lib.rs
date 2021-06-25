@@ -24,7 +24,7 @@ extern "C" {
 #[repr(C)]
 pub struct ResponseStatus {
     code: c_int,
-    description: *const c_char,
+    description: *mut c_char,
 }
 
 pub struct FrameResult<'f> {
@@ -46,6 +46,7 @@ pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, Er
         let res = grab_frame(p_in, in_len, p_out, &mut out_len, p_rotate);
         if res.code != FG_OK {
             let desc = CStr::from_ptr(res.description);
+            // match not possible with static only with const (& const not possible for extern const in C)
             if res.code == FG_ERROR_INVALID_INPUT {
                 return Err(Error::InvalidData(desc.to_str().unwrap().to_string()));
             } else if res.code == FG_ERROR_INTERNAL {
