@@ -12,7 +12,7 @@ extern "C" {
         outsize: *mut size_t,
         rotate: *mut *mut c_char,
     ) -> ResponseStatus;
-    /** Everything went well */
+    /** Everything went well, data is available in `out_data` & rotation value in `rotate` */
     static FG_OK: c_int;
     /** Data is invalid for some reason (no stream found, corrupted file...) */
     static FG_ERROR_INVALID_INPUT: c_int;
@@ -32,7 +32,7 @@ pub struct FrameResult<'f> {
     pub rotation: Option<&'f str>,
 }
 
-pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, FrameError> {
+pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, Error> {
     unsafe {
         let in_len = video_src.len() as size_t;
         let p_in = video_src.as_ptr();
@@ -47,13 +47,13 @@ pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, Fr
         if res.code != FG_OK {
             let desc = CStr::from_ptr(res.description);
             if res.code == FG_ERROR_INVALID_INPUT {
-                return Err(FrameError::InvalidData(desc.to_str().unwrap().to_string()));
+                return Err(Error::InvalidData(desc.to_str().unwrap().to_string()));
             } else if res.code == FG_ERROR_INTERNAL {
-                return Err(FrameError::InternalError(
-                    desc.to_str().unwrap().to_string(),
-                ));
+                return Err(Error::InternalError(desc.to_str().unwrap().to_string()));
             } else if res.code == FG_NOT_FOUND {
-                return Err(FrameError::NoFrameFound(desc.to_str().unwrap().to_string()));
+                return Err(Error::NoFrameFound(desc.to_str().unwrap().to_string()));
+            } else {
+                return Err(Error::Undefined);
             }
         }
 
@@ -73,10 +73,11 @@ pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, Fr
 }
 
 #[derive(Debug)]
-pub enum FrameError {
+pub enum Error {
     InternalError(String),
     InvalidData(String),
     NoFrameFound(String),
+    Undefined,
 }
 
 #[cfg(test)]
