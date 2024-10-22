@@ -5,7 +5,7 @@ use libc::{c_char, c_int, size_t};
 
 #[link(name = "fgrabber")]
 extern "C" {
-    fn grab_frame(
+    fn grab_frame_from_byte_buffer(
         in_data: *const u8,
         in_size: size_t,
         out_data: *mut *mut u8,
@@ -39,11 +39,10 @@ pub fn get_first_frame(video_src: &[u8]) -> core::result::Result<FrameResult, Er
 
         let mut out_len = 0 as size_t;
         let mut out: *mut u8 = std::ptr::null_mut();
-        let p_out = &mut out;
 
         let mut rotate: *mut c_char = std::ptr::null_mut();
-        let p_rotate = &mut rotate;
-        let res = grab_frame(p_in, in_len, p_out, &mut out_len, p_rotate);
+
+        let res = grab_frame_from_byte_buffer(p_in, in_len, &mut out, &mut out_len, &mut rotate);
         if res.code != FG_OK {
             let desc = CStr::from_ptr(res.description);
             // match not possible with static only with const (& const not possible for extern const in C)
